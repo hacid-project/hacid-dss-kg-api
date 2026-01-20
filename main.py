@@ -246,7 +246,7 @@ def list_resources_for_role(
                         BIND(CONCAT(?general_method_base_label, IF(?general_method_alt_labels, CONCAT(' (',?general_method_alt_labels,')'), '')) AS ?general_method_label)
                         {{
                             {{
-                                VALUES ?specific_method_base_label {''}
+                                VALUES ?specific_method_base_label {{''}}
                                 BIND(?general_method AS ?{output_var_name})
                             }}
                             UNION
