@@ -220,22 +220,49 @@ def list_resources_for_role(
             SELECT 
                 ?{output_var_name} ?{output_var_name}Label
             WHERE {{
-  	            {{  
-                    SELECT ?{output_var_name}
-                        (CONCAT(?general_method_label, ' - ', ?specific_method_label) AS ?base_method_label)
-                        (GROUP_CONCAT(DISTINCT ?specific_method_altLabel; separator=", ") AS ?alt_method_labels)
+                {{  
+                    SELECT
+                        ?{output_var_name}
+                        ?general_method_label
+                        ?general_method_base_label
+                        ?specific_method_base_label
+                        (GROUP_CONCAT(DISTINCT ?specific_method_alt_label; separator=", ") AS ?specific_method_alt_labels)
                     WHERE {{
-                        ?general_method top:specializes methods:ClimateCaseMethod;
-                            rdfs:label ?general_method_label.
-                        ?{output_var_name} top:specializes ?general_method;
-                            rdfs:label ?specific_method_label.
-                        OPTIONAL {{
-                            ?{output_var_name} top:altLabel ?specific_method_altLabel
+                        {{
+                            SELECT
+                                ?general_method
+                                ?general_method_base_label
+                                (GROUP_CONCAT(DISTINCT ?general_method_alt_label; separator=", ") AS ?general_method_alt_labels)
+                            WHERE {{
+                                ?general_method top:specializes methods:ClimateCaseMethod;
+                                    rdfs:label ?general_method_base_label.
+                                _:some_resource top:specializes ?general_method.
+                                OPTIONAL {{
+                                    ?general_method top:altLabel ?general_method_alt_label
+                                }}
+                            }}
+                            GROUP BY ?general_method ?general_method_base_label
+                        }}
+                        BIND(CONCAT(?general_method_base_label, IF(?general_method_alt_labels, CONCAT(' (',?general_method_alt_labels,')'), '')) AS ?general_method_label)
+                        {{
+                            {{
+                                VALUES ?specific_method_base_label {''}
+                                BIND(?general_method AS ?{output_var_name})
+                            }}
+                            UNION
+                            {{
+                                ?{output_var_name} top:specializes ?general_method;
+                                    rdfs:label ?specific_method_base_label.
+                                OPTIONAL {{
+                                    ?{output_var_name} top:altLabel ?specific_method_alt_label
+                                }}
+                            }}
                         }}
                     }}
-                    GROUP BY ?{output_var_name} ?general_method_label ?specific_method_label
-  	            }}
-  	            BIND(CONCAT(?base_method_label,IF(?alt_method_labels, CONCAT(' (',?alt_method_labels,')'),'')) AS ?{output_var_name}Label).
+                    GROUP BY ?{output_var_name} ?general_method_base_label ?general_method_label ?specific_method_base_label
+                }}
+                BIND(CONCAT(?specific_method_base_label, IF(?specific_method_alt_labels, CONCAT(' (',?specific_method_alt_labels,')'), '')) AS ?specific_method_label)
+                BIND(IF(?specific_method_label, CONCAT(?general_method_base_label, ' - ', ?specific_method_label), ?general_method_label) AS ?{output_var_name}Label)
                 {contains_filter}
             }}
             ORDER BY ?{output_var_name}Label
