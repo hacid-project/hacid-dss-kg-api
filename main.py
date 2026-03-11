@@ -3,13 +3,15 @@ from SPARQLWrapper import SPARQLWrapper, CSV, JSON
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
+from relevance import KgClient
 
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from jose import jwt, JWTError
 import httpx
 
 
-app = FastAPI(root_path="/api/")
+#app = FastAPI(root_path="/api/")
+app = FastAPI()
 
 origins = [
     "http://localhost",  # Add specific origins if you don't want to allow all
@@ -26,6 +28,10 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
 )
+
+kg = KgClient(
+        endpoint_url="http://keng.istc.cnr.it:7200/repositories/hacid-cs-write",
+        update_endpoint_url="http://keng.istc.cnr.it:7200/repositories/hacid-cs-write/statements")
 
 sparql = SPARQLWrapper("http://w3id.org/hacid/cs/sparql")
 
@@ -341,6 +347,26 @@ def find_hazards(startswith: str|None = None, contains: str | None = None):
     results = sparql.query().convert()
 
     return results['results']['bindings']
+
+
+@app.post("/knowledge-graph/tag")
+def tag_resource(resource_URI: str, user_id: str, case_id: str):
+    kg.create_relevance(case_id=case_id, entity_uri=resource_URI, user_id=user_id)
+
+    return {"message": "Resource tagged successfully"}
+
+
+@app.get("/knowledge-graph/tag")
+def get_tagged_resource_info(resource_URI: str, case_id: str):
+    info = kg.get_relevance_info(case_id=case_id, entity_uri=resource_URI)
+    return info
+
+
+@app.delete("/knowledge-graph/tag")
+def untag_resource(resource_URI: str, user_id: str, case_id: str):
+    kg.delete_relevance(case_id=case_id, entity_uri=resource_URI, user_id=user_id)
+    return {"message": "Resource untagged successfully"}
+
 
 @app.get("/knowledge-graph/sparql")
 def find_class_instances(query: str):
